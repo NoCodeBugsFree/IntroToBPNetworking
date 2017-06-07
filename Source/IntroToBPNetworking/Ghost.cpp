@@ -12,7 +12,7 @@ AGhost::AGhost()
 	GhostMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("GhostMesh"));
 	GhostMesh->SetupAttachment(RootComponent);
 
-	// Replication
+	// Replication 1.1
 	bReplicates = true;
 }
 

@@ -27,9 +27,6 @@ void AIntroToBPNetworkingGameMode::SpawnActor(TSubclassOf<AGhost> GhostType, FTr
 			SpawnParams.Instigator = Instigator;
 
 			AGhost* SpawnedGhost = World->SpawnActor<AGhost>(GhostType, SpawnTransform, SpawnParams);
-			if (SpawnedGhost)
-			{
-			}
 		}
 	}
 }
