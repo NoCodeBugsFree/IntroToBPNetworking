@@ -8,7 +8,6 @@ AGhostReplicatedVariables::AGhostReplicatedVariables()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// 
 	bReplicates = true;
 }
 
