@@ -21,10 +21,12 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	/** Dynamic Material Creation   */
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 protected:
 	
+	/** Replicated Using Test Variable */
 	UPROPERTY(ReplicatedUsing = OnRep_StreetLightScalar)
 	float StreetLightScalar = 0.f;
 	
@@ -33,15 +35,19 @@ protected:
 	UFUNCTION()
 	virtual void OnRep_StreetLightScalar();
 
+	/** Stop light color change delay time  */
 	int32 ColorChangeTime = 1;
 
 	FTimerHandle ColorChangeTimer;
 
+	/** Stop Light static mesh */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AAA", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* Mesh;
 
+	/** Dynamic Material REference */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AAA", meta = (AllowPrivateAccess = "true"))
 	UMaterialInstanceDynamic* DynamicMaterial;
 	
+	/** Changes StreetLightScalar variable to next random in range nubmer   */
 	void ChangeColor();
 };
