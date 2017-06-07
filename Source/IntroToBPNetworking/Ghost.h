@@ -19,8 +19,17 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	/**  Ghost Static Mesh */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AAA", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* GhostMesh;
+	
+	/** Help Text  */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AAA", meta = (AllowPrivateAccess = "true"))
+	class UTextRenderComponent* GhostText;
+
+	/** Dynamic Material  */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AAA", meta = (AllowPrivateAccess = "true"))
+	class UMaterialInstanceDynamic* DynamicMaterial;
 
 public:	
 	// Called every frame
