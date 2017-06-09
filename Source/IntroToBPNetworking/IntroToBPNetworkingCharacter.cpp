@@ -8,9 +8,152 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Net/UnrealNetwork.h"
+#include "Components/TextRenderComponent.h"
+#include "Components/ArrowComponent.h"
+#include "Bomb.h"
+
+
+// -----------------------------------------------------------------------------------
+//			Tutorial	 Staff
+// -----------------------------------------------------------------------------------
+
+void AIntroToBPNetworkingCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	InitAttributes();
+}
+
+float AIntroToBPNetworkingCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+	
+	// [Server]
+	if (Role == ROLE_Authority)
+	{
+		if (ActualDamage > 0.f)
+		{
+			OnTakeDamage(ActualDamage);
+
+			OnRep_Health(); // to listen server
+		}
+	}
+
+	return ActualDamage;
+}
+
+void AIntroToBPNetworkingCharacter::OnTakeDamage(float Damage)
+{
+	// [Server]
+	if (Role == ROLE_Authority)
+	{
+		Health -= Damage;
+		if (Health <= 0)
+		{
+			Health = MaxHealth;
+		}
+	}
+}
+
+void AIntroToBPNetworkingCharacter::InitAttributes()
+{
+	// [Server]
+	if (Role == ROLE_Authority)
+	{
+		Health = MaxHealth;
+		OnRep_Health(); // manually call for listen server
+
+		BombCount = MaxBombCount;
+		OnRep_BombCount(); // manually call for listen server
+	}
+}
+
+void AIntroToBPNetworkingCharacter::UpdateCharacterText()
+{
+	FString String = FString::Printf(TEXT("Health: %f / Ammo: %d"), Health, BombCount);
+	FText TextToSet = FText::FromString(String);
+	HelpText->SetText(TextToSet);
+}
+
+void AIntroToBPNetworkingCharacter::Fire()
+{
+	if (HasBombs() && bCanFire)
+	{
+		// disable firing ability
+		bCanFire = false;
+
+		// Server spawn a bomb 
+		ServerAttemptSpawnBomb();
+		
+		// start reloading timer
+		GetWorldTimerManager().SetTimer(ReloadingTimer, this, &AIntroToBPNetworkingCharacter::Reloading, ReloadingDelay, false);
+	}
+}
+
+void AIntroToBPNetworkingCharacter::Reloading()
+{
+	bCanFire = true;
+}
+
+void AIntroToBPNetworkingCharacter::ServerAttemptSpawnBomb_Implementation()
+{
+	// [Server]
+	if (Role == ROLE_Authority && HasBombs())
+	{
+		if (BombType)
+		{
+			UWorld* const World = GetWorld();
+			if (World)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.Owner = this;
+				SpawnParams.Instigator = Instigator;
+
+				FTransform SpawnTransform = SpawnBombLocation->GetComponentTransform();
+
+				ABomb* SpawnedBomb = World->SpawnActor<ABomb>(BombType, SpawnTransform, SpawnParams);
+				if (SpawnedBomb)
+				{
+					BombCount--;
+					OnRep_BombCount(); // for listen server
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Set up Bomb Type in BP_Character. . . "));
+		}
+	}
+}
+
+void AIntroToBPNetworkingCharacter::OnRep_Health()
+{
+	UpdateCharacterText();
+}
+
+void AIntroToBPNetworkingCharacter::OnRep_BombCount()
+{
+	UpdateCharacterText();
+}
+
+// GetLifetimeReplicatedProps
+void AIntroToBPNetworkingCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AIntroToBPNetworkingCharacter, Health);
+	DOREPLIFETIME(AIntroToBPNetworkingCharacter, BombCount);
+
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // AIntroToBPNetworkingCharacter
+
+// -----------------------------------------------------------------------------------
+//			Default		Character 
+// -----------------------------------------------------------------------------------
 
 AIntroToBPNetworkingCharacter::AIntroToBPNetworkingCharacter()
 {
@@ -45,6 +188,17 @@ AIntroToBPNetworkingCharacter::AIntroToBPNetworkingCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+
+	/** Spawn Bomb Location  */
+	SpawnBombLocation = CreateDefaultSubobject<UArrowComponent>(TEXT("SpawnBombLocation"));
+	SpawnBombLocation->SetupAttachment(RootComponent);
+
+
+	HelpText = CreateDefaultSubobject<UTextRenderComponent>(TEXT("HelpText"));
+	HelpText->SetupAttachment(RootComponent);
+
+	bCanFire = true; // intended to spawn with full ammo
+	
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -74,8 +228,10 @@ void AIntroToBPNetworkingCharacter::SetupPlayerInputComponent(class UInputCompon
 
 	// VR headset functionality
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &AIntroToBPNetworkingCharacter::OnResetVR);
-}
 
+	/** Spawn a bomb  */
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AIntroToBPNetworkingCharacter::Fire);
+}
 
 void AIntroToBPNetworkingCharacter::OnResetVR()
 {
